@@ -1,0 +1,1 @@
+/home/sohachimi/0-shell/target/debug/shell: /home/sohachimi/0-shell/src/commands/cd.rs /home/sohachimi/0-shell/src/commands/echo.rs /home/sohachimi/0-shell/src/commands/mod.rs /home/sohachimi/0-shell/src/main.rs
