@@ -5,6 +5,7 @@ mod commands;
 
 fn main() {
     loop {
+        
 
         print!("$ ");
         stdout().flush().unwrap();
@@ -25,7 +26,7 @@ fn main() {
         let args: Vec<&str> = input.split_whitespace().collect();
 
         match args[0] {
-            "echo" => commands::echo::echo(args),
+            "echo" => commands::echo::echo(args[1..].to_vec()),
             _  => print!("bash: command not found: {}", args[0])
         }
 
