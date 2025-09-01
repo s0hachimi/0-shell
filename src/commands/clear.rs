@@ -1,4 +1,3 @@
-use std::process::Command;
 
 pub fn clear(args: Vec<&str>) {
     if args.len() > 0 {
@@ -13,10 +12,5 @@ Options:
         return;
     }
 
-    let output = Command::new("clear")
-        .output()
-        .expect("Failed to execute 'clear' command");
-
-    let stdout_str = str::from_utf8(&output.stdout).expect("Invalid UTF-8 in output");
-    print!("{}", stdout_str)
+    print!("\x1B[H\x1B[2J\x1B[3J")
 }

@@ -42,7 +42,7 @@ fn main() {
                println!("{}", pwd);
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
-            _  => println!("{}: command not found", args[0])
+            _  => println!("Command {} not found", args[0].red().bold())
         }
 
 
