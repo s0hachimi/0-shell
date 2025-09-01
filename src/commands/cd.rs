@@ -5,7 +5,7 @@ use crate::commands::pwd::pwd;
 
 pub fn cd(args: Vec<&str>) {
     if args.len() > 1 {
-        println!("bash: cd: too many arguments");
+        println!("cd: too many arguments");
         return;
     }
 
@@ -15,7 +15,7 @@ pub fn cd(args: Vec<&str>) {
         match env::var("HOME") {
             Ok(home) => home,
             Err(_) => {
-                println!("bash: cd: HOME not set");
+                println!("cd: HOME not set");
                 return;
             }
         }
@@ -28,7 +28,7 @@ pub fn cd(args: Vec<&str>) {
         match env::var("OLDPWD") {
             Ok(old_pwd) => old_pwd,
             Err(_) => {
-                println!("bash: cd: OLDPWD not set");
+                println!("cd: OLDPWD not set");
                 return;
             }
         }
@@ -37,13 +37,13 @@ pub fn cd(args: Vec<&str>) {
         target
     };
 
-   if args[0] == "-" { println!("{}", target) }
+   if !args.is_empty() && args[0] == "-" { println!("{}", target) }
 
     let path = Path::new(&target);
 
     if let Err(e) = env::set_current_dir(&path) {
         let err_msg = &e.to_string()[..e.to_string().len()-13];
-        println!("bash: cd: {}: {}", target, err_msg);
+        println!("cd: {}: {}", target, err_msg);
         return;
     }
 

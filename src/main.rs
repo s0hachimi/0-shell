@@ -2,12 +2,7 @@ use std::io::*;
 mod commands;
 use colored::*;
 
-
-
 fn main() {
-
-    
-
     loop {
         let current_path = commands::pwd::pwd();
 
@@ -24,29 +19,30 @@ fn main() {
 
         // || !input.chars().all(|c| c.is_alphanumeric() || c == ' ' || c == '~' || c == '.')  khsni n7iyd special characters
         if input.is_empty() {
-            continue
+            continue;
         }
 
         if input == "exit" {
             break;
         }
 
-
         let args: Vec<&str> = input.split_whitespace().collect();
 
         match args[0] {
             "echo" => commands::echo::echo(args[1..].to_vec()),
-            "cd" =>  commands::cd::cd(args[1..].to_vec()),
+            "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
-               let pwd = commands::pwd::pwd();
-               println!("{}", pwd);
+                if args.len() > 1 {
+                    println!("pwd: too many arguments");
+                    continue;
+                }
+
+                let pwd = commands::pwd::pwd();
+                println!("{}", pwd);
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
-            _  => println!("Command {} not found", args[0].red().bold())
+            "ls" => commands::ls::ls(args[1..].to_vec()),
+            _ => println!("Command {} not found", args[0].red().bold()),
         }
-
-
-
-     
     }
 }
