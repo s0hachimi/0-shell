@@ -1,1 +1,0 @@
-/home/sohachimi/Desktop/0-shell/target/debug/shell: /home/sohachimi/Desktop/0-shell/src/commands/cd.rs /home/sohachimi/Desktop/0-shell/src/commands/clear.rs /home/sohachimi/Desktop/0-shell/src/commands/echo.rs /home/sohachimi/Desktop/0-shell/src/commands/mod.rs /home/sohachimi/Desktop/0-shell/src/commands/pwd.rs /home/sohachimi/Desktop/0-shell/src/main.rs
