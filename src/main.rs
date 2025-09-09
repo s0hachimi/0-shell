@@ -29,7 +29,7 @@ fn main() {
         let args: Vec<&str> = input.split_whitespace().collect();
 
         match args[0] {
-            "echo" => commands::echo::echo(args[1..].to_vec()),
+            "echo" => commands::echo::echo(&args[1..].to_vec().join(" ")),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
