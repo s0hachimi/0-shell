@@ -1,6 +1,7 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
 use colored::Colorize;
 use std::{fs, os::linux::fs::MetadataExt};
+use users::{get_group_by_gid, get_user_by_uid};
 
 use crate::commands::pwd::pwd;
 
@@ -100,12 +101,20 @@ pub fn ls(mut args: Vec<&str>) {
                 let local_dt = Local.from_utc_datetime(&dt);
                 let datetime = local_dt.format("%b %e %H:%M").to_string();
 
+                let username = get_user_by_uid(uid)
+                    .map(|u| u.name().to_string_lossy().to_string())
+                    .unwrap_or_else(|| format!("{}", uid));
+
+                let groupname = get_group_by_gid(gid)
+                    .map(|u| u.name().to_string_lossy().to_string())
+                    .unwrap_or_else(|| format!("{}", gid));
+
                 flag_l.push(
                     [
                         perms_str,
                         nlink.to_string(),
-                        uid.to_string(),
-                        gid.to_string(),
+                        username,
+                        groupname,
                         size.to_string(),
                         datetime,
                         name.clone(),
@@ -119,10 +128,8 @@ pub fn ls(mut args: Vec<&str>) {
     }
 
     if l {
-        sort(&mut flag_l[0]);
         format_flag_l(flag_l);
     } else {
-        sort(&mut no_flag_or_a_f);
         let sorted = no_flag_or_a_f.join(" ");
         println!("{}", sorted);
     }
@@ -211,11 +218,10 @@ fn flag_f(m: u32) -> (bool, bool) {
     (dir, file_x)
 }
 
-
-fn sort(files: &mut Vec<String>) {
-    files.sort_by(|a, b| {
-        let name_a = a.split_whitespace().last().unwrap_or("");
-        let name_b = b.split_whitespace().last().unwrap_or("");
-        name_a.to_lowercase().cmp(&name_b.to_lowercase())
-    });
-}
+// fn sort(files: &mut Vec<String>) {
+//     files.sort_by(|a, b| {
+//         let name_a = a.split_whitespace().last().unwrap_or("");
+//         let name_b = b.split_whitespace().last().unwrap_or("");
+//         name_a.to_lowercase().cmp(&name_b.to_lowercase())
+//     });
+// }
