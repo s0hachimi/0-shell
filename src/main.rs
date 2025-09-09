@@ -42,6 +42,7 @@ fn main() {
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
             "ls" => commands::ls::ls(args[1..].to_vec()),
+            "cat" => commands::cat::cat(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }
