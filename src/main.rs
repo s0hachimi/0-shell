@@ -6,7 +6,7 @@ fn main() {
     loop {
         let current_path = commands::pwd::pwd();
 
-        print!("{} $ ", current_path.blue().bold());
+        print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
         let mut input = String::new();

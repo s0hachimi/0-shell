@@ -1,4 +1,5 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
+use colored::Colorize;
 use std::{fs, os::linux::fs::MetadataExt};
 
 use crate::commands::pwd::pwd;
@@ -6,11 +7,9 @@ use crate::commands::pwd::pwd;
 pub fn ls(mut args: Vec<&str>) {
     let mut a = false;
     let mut l = false;
-    let mut F = false;
+    let mut f = false;
 
     args.sort_by_key(|f| f.starts_with("-"));
-
-    // println!("{:?}", args);
 
     let path = if !args.is_empty() && !args[0].starts_with("-") {
         args[0].to_string()
@@ -22,7 +21,7 @@ pub fn ls(mut args: Vec<&str>) {
         if flag.starts_with("-") {
             l = flag.contains("l");
             a = flag.contains("a");
-            F = flag.contains("F");
+            f = flag.contains("F");
         }
     }
 
@@ -51,10 +50,23 @@ pub fn ls(mut args: Vec<&str>) {
 
     for entry in dir {
         if let Ok(en) = entry {
-            let name = match en.file_name().into_string() {
+            let mut name = match en.file_name().into_string() {
                 Ok(n) => n,
                 Err(_) => "".to_string(),
             };
+
+            let meta_data = en.metadata().unwrap();
+            let mode = meta_data.st_mode();
+
+            if f {
+                let (dir, file_x) = flag_f(mode);
+
+                if dir {
+                    name.push('/');
+                } else if file_x {
+                    name.push('*');
+                }
+            }
 
             if !a {
                 if name.starts_with(".") {
@@ -62,9 +74,20 @@ pub fn ls(mut args: Vec<&str>) {
                 }
             }
 
+            if meta_data.is_dir() {
+                name = name.blue().bold().to_string();
+            } else if meta_data.is_file() {
+                let (_, file_x) = flag_f(mode);
+                name = if file_x {
+                    name.green().bold().to_string()
+                } else {
+                    name
+                };
+            } else if meta_data.is_symlink() {
+                name = name.cyan().bold().to_string();
+            }
+
             if l {
-                let meta_data = en.metadata().unwrap();
-                let mode = meta_data.st_mode();
                 let perms_str = perms(mode);
                 let nlink = meta_data.st_nlink();
                 let uid = meta_data.st_uid();
@@ -96,10 +119,10 @@ pub fn ls(mut args: Vec<&str>) {
     }
 
     if l {
-        flag_l.sort_by_key(|f| f[f.len() - 1].clone());
+        sort(&mut flag_l[0]);
         format_flag_l(flag_l);
     } else {
-        no_flag_or_a_f.sort_by_key(|n| n.chars().next());
+        sort(&mut no_flag_or_a_f);
         let sorted = no_flag_or_a_f.join(" ");
         println!("{}", sorted);
     }
@@ -146,16 +169,15 @@ fn perms(m: u32) -> String {
 }
 
 fn format_flag_l(flag: Vec<Vec<String>>) {
-    let mut sizes = vec![0; flag[0].len()-1];
+    let mut sizes = vec![0; flag[0].len() - 1];
 
-    
-    for i in 0..flag[0].len()-1 {
+    for i in 0..flag[0].len() - 1 {
         let mut len = 0;
 
         for row in flag.iter() {
-             if len < row[i].len() {
+            if len < row[i].len() {
                 len = row[i].len();
-             }
+            }
         }
         sizes[i] = len;
     }
@@ -163,22 +185,37 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
     let mut result = Vec::new();
 
     for rows in flag.into_iter() {
-
-        for (i, v) in rows[..rows.len()-1].iter().enumerate() {
+        for (i, v) in rows[..rows.len() - 1].iter().enumerate() {
             let mut st = String::new();
             let n = sizes[i] - v.len();
 
             st.push_str(&" ".repeat(n));
             st.push_str(v);
             result.push(st);
-
         }
 
-        result.push(rows[rows.len()-1].clone());
+        result.push(rows[rows.len() - 1].clone());
         println!("{}", result.join(" "));
         result.clear();
     }
+}
+
+fn flag_f(m: u32) -> (bool, bool) {
+    let dir = if (m & 0o040000) != 0 { true } else { false };
+    let file_x = if m & 0o100 != 0 || m & 0o010 != 0 || m & 0o001 != 0 {
+        true
+    } else {
+        false
+    };
+
+    (dir, file_x)
+}
 
 
-
+fn sort(files: &mut Vec<String>) {
+    files.sort_by(|a, b| {
+        let name_a = a.split_whitespace().last().unwrap_or("");
+        let name_b = b.split_whitespace().last().unwrap_or("");
+        name_a.to_lowercase().cmp(&name_b.to_lowercase())
+    });
 }
