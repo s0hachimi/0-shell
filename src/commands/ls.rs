@@ -57,10 +57,10 @@ pub fn ls(mut args: Vec<&str>) {
             };
 
             let meta_data = en.metadata().unwrap();
-            let mode = meta_data.st_mode();
+            let debug_output = format!("{:?}", meta_data.permissions());
 
             if f {
-                let (dir, file_x) = flag_f(mode);
+                let (dir, file_x) = flag_f(perms(debug_output.clone()));
 
                 if dir {
                     name.push('/');
@@ -78,7 +78,7 @@ pub fn ls(mut args: Vec<&str>) {
             if meta_data.is_dir() {
                 name = name.blue().bold().to_string();
             } else if meta_data.is_file() {
-                let (_, file_x) = flag_f(mode);
+                let (_, file_x) = flag_f(perms(debug_output.clone()));
                 name = if file_x {
                     name.green().bold().to_string()
                 } else {
@@ -89,7 +89,7 @@ pub fn ls(mut args: Vec<&str>) {
             }
 
             if l {
-                let perms_str = perms(mode);
+                let perms_str = perms(debug_output.clone());
                 let nlink = meta_data.st_nlink();
                 let uid = meta_data.st_uid();
                 let gid = meta_data.st_gid();
@@ -135,44 +135,11 @@ pub fn ls(mut args: Vec<&str>) {
     }
 }
 
-fn perms(m: u32) -> String {
-    let mut perms = Vec::new();
+fn perms(perm: String) -> String {
+    let arr: Vec<&str> = perm.split_whitespace().collect();
+    let st = arr[arr.len()-2];
 
-    // directory or file
-    perms.push(if (m & 0o040000) != 0 {
-        "d" // directory
-    } else if (m & 0o100000) != 0 {
-        "-" // regular file
-    } else if (m & 0o120000) != 0 {
-        "l" // symlink
-    } else if (m & 0o020000) != 0 {
-        "c" // character device
-    } else if (m & 0o060000) != 0 {
-        "b" // block device
-    } else if (m & 0o010000) != 0 {
-        "p" // FIFO / pipe
-    } else if (m & 0o140000) != 0 {
-        "s" // socket
-    } else {
-        "?" // unknown
-    });
-
-    // user
-    perms.push(if (m & 0o400) != 0 { "r" } else { "-" });
-    perms.push(if (m & 0o200) != 0 { "w" } else { "-" });
-    perms.push(if (m & 0o100) != 0 { "x" } else { "-" });
-
-    // group
-    perms.push(if (m & 0o040) != 0 { "r" } else { "-" });
-    perms.push(if (m & 0o020) != 0 { "w" } else { "-" });
-    perms.push(if (m & 0o010) != 0 { "x" } else { "-" });
-
-    // others
-    perms.push(if (m & 0o004) != 0 { "r" } else { "-" });
-    perms.push(if (m & 0o002) != 0 { "w" } else { "-" });
-    perms.push(if (m & 0o001) != 0 { "x" } else { "-" });
-
-    perms.join("")
+    st[1..st.len()-1].to_string()
 }
 
 fn format_flag_l(flag: Vec<Vec<String>>) {
@@ -207,21 +174,9 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
     }
 }
 
-fn flag_f(m: u32) -> (bool, bool) {
-    let dir = if (m & 0o040000) != 0 { true } else { false };
-    let file_x = if m & 0o100 != 0 || m & 0o010 != 0 || m & 0o001 != 0 {
-        true
-    } else {
-        false
-    };
+fn flag_f(perms: String) -> (bool, bool) {
+    let dir = perms.contains("d");
+    let file_x = perms.contains("x");  
 
     (dir, file_x)
 }
-
-// fn sort(files: &mut Vec<String>) {
-//     files.sort_by(|a, b| {
-//         let name_a = a.split_whitespace().last().unwrap_or("");
-//         let name_b = b.split_whitespace().last().unwrap_or("");
-//         name_a.to_lowercase().cmp(&name_b.to_lowercase())
-//     });
-// }
