@@ -6,7 +6,7 @@ fn main() {
     loop {
         let current_path = commands::pwd::pwd();
 
-        print!("{} $ ", current_path.blue().bold());
+        print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
         let mut input = String::new();
@@ -29,7 +29,7 @@ fn main() {
         let args: Vec<&str> = input.split_whitespace().collect();
 
         match args[0] {
-            "echo" => commands::echo::echo(args[1..].to_vec()),
+            "echo" => commands::echo::echo(&args[1..].join(" ")),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
@@ -42,6 +42,8 @@ fn main() {
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
             "ls" => commands::ls::ls(args[1..].to_vec()),
+            "cat" => commands::cat::cat(args[1..].to_vec()),
+            "rm" => commands::rm::rm(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }
