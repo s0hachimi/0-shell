@@ -1,8 +1,14 @@
-use std::io::*;
+use std::{fs, io::*};
 mod commands;
 use colored::*;
 
 fn main() {
+    
+    match fs::read_to_string("./src/art.txt") {
+        Ok(content) => println!("{}\n", content.bright_blue().bold()),
+        Err(e) => eprintln!("{}", e),
+    }
+
     loop {
         let current_path = commands::pwd::pwd();
 
