@@ -16,9 +16,19 @@ fn main() {
         stdout().flush().unwrap();
 
         let mut input = String::new();
-        if stdin().read_line(&mut input).is_err() {
-            eprintln!("Failed to read line");
-            continue;
+        match stdin().read_line(&mut input) {
+            Ok(0) => {
+                // Ctrl+D pressed (EOF)
+                println!(); // Add newline for clean exit
+                break;
+            }
+            Ok(_) => {
+                // Successfully read input
+            }
+            Err(_) => {
+                eprintln!("Failed to read line");
+                continue;
+            }
         }
 
         let input = input.trim();
