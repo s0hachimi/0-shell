@@ -1,6 +1,9 @@
 use chrono::{Duration, Local, NaiveDateTime, TimeZone};
 use colored::Colorize;
-use std::{fs, os::linux::fs::MetadataExt};
+use std::{
+    fs,
+    os::{linux::fs::MetadataExt, unix::fs::FileTypeExt},
+};
 use users::{get_group_by_gid, get_user_by_uid};
 
 use crate::commands::pwd::pwd;
@@ -85,7 +88,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
         if let Ok(meta_data) = fs::metadata(dir_path) {
             total += meta_data.st_blocks() / 2;
 
-            let mut name = ".".to_string();
+            let mut name = ".".blue().bold().to_string();
             if f {
                 name.push('/');
             }
@@ -109,7 +112,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             if let Ok(meta_data) = fs::metadata(parent) {
                 total += meta_data.st_blocks() / 2;
 
-                let mut name = "..".to_string();
+                let mut name = "..".blue().bold().to_string();
                 if f {
                     name.push('/');
                 }
@@ -125,7 +128,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             if let Ok(meta_data) = fs::metadata(dir_path) {
                 total += meta_data.st_blocks() / 2;
 
-                let mut name = "..".to_string();
+                let mut name = "..".blue().bold().to_string();
                 if f {
                     name.push('/');
                 }
@@ -147,7 +150,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             };
 
             let meta_data = en.metadata().unwrap();
-            let debug_output = format!("{:?}", meta_data.permissions());
+            // let debug_output: String = format!("{:?}", meta_data.permissions());
 
             total += meta_data.st_blocks() / 2;
 
@@ -155,7 +158,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                 continue;
             }
 
-            let st = flag_f(perms(debug_output.clone()));
+            let st = flag_f(perms(meta_data.clone()));
 
             // color o kda
             name = match st {
@@ -166,8 +169,6 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                 "*" => name.green().bold().to_string(),
                 _ => name,
             };
-
-            
 
             if f {
                 name.push_str(&st);
@@ -192,8 +193,8 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
 }
 
 fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<String>>) {
-    let debug_output = format!("{:?}", meta_data.permissions());
-    let perms_str = perms(debug_output);
+    // let debug_output = format!("{:?}", meta_data.permissions());
+    let perms_str = perms(meta_data.clone());
     let nlink = meta_data.st_nlink();
     let uid = meta_data.st_uid();
     let gid = meta_data.st_gid();
@@ -228,15 +229,60 @@ fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<Strin
     );
 }
 
-fn perms(perm: String) -> String {
-    let arr: Vec<&str> = perm.split_whitespace().collect();
-    let st = arr[arr.len() - 2];
+fn perms(meta_data: fs::Metadata) -> String {
+    let mode = meta_data.st_mode();
 
-    // if st.chars().any(|f| f.is_numeric()) {
-    //     println!("{}", m);
-    // }
+    let owner = (mode & 0o700) >> 6;
+    let group = (mode & 0o070) >> 3;
+    let others = mode & 0o007;
 
-    st[1..st.len() - 1].to_string()
+    let mut perm_str = String::new();
+
+    let file_type = meta_data.file_type();
+
+    perm_str.push(if file_type.is_dir() {
+        'd'
+    } else if file_type.is_symlink() {
+        'l'
+    } else if file_type.is_fifo() {
+        'p'
+    } else if file_type.is_socket() {
+        's'
+    } else if file_type.is_file() {
+        '-'
+    } else if file_type.is_char_device() {
+        'c'
+    } else if file_type.is_block_device() {
+        'b'
+    } else {
+        '?'
+    });
+
+    perm_str.push(if owner & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if owner & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o4000 != 0 {
+        perm_str.push(if owner & 0o1 != 0 { 's' } else { 'S' });
+    } else {
+        perm_str.push(if owner & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    perm_str.push(if group & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if group & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o2000 != 0 {
+        perm_str.push(if group & 0o1 != 0 { 's' } else { 'S' });
+    } else {
+        perm_str.push(if group & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    perm_str.push(if others & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if others & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o1000 != 0 {
+        perm_str.push(if others & 0o1 != 0 { 't' } else { 'T' });
+    } else {
+        perm_str.push(if others & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    perm_str
 }
 
 fn format_flag_l(flag: Vec<Vec<String>>) {
@@ -260,8 +306,14 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
             let mut st = String::new();
             let n = sizes[i] - v.len();
 
-            st.push_str(&" ".repeat(n));
-            st.push_str(v);
+            if i == 2 || i == 3 {
+                st.push_str(v);
+                st.push_str(&" ".repeat(n));
+            } else {
+                st.push_str(&" ".repeat(n));
+                st.push_str(v);
+            }
+
             result.push(st);
         }
 
@@ -289,6 +341,19 @@ fn flag_f(perms: String) -> &'static str {
     st
 }
 
-// fn sort(forms: &mut Vec<String>)  {
-//     // println!("{:?}", forms)
+// fn sort(files: &mut Vec<Vec<String>>) {
+//     files.sort_by(|a, b| {
+//         // let one = a[a.len() - 1]
+//         //     .chars()
+//         //     .filter(|c| c.is_alphanumeric())
+//         //     .next();
+//         // let two = b[b.len() - 1]
+//         //     .chars()
+//         //     .filter(|c| c.is_alphanumeric())
+//         //     .next();
+
+//         println!("{:?} {:?}", a, b);
+
+//         a.cmp(&b)
+//     });
 // }
