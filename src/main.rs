@@ -127,6 +127,8 @@ fn main() {
             "cat" => commands::cat::cat(args[1..].iter().map(|s| s.as_str()).collect()),
             "rm" => commands::rm::rm(args[1..].iter().map(|s| s.as_str()).collect()),
             "mkdir" => commands::mkdir::mkdir(args[1..].iter().map(|s| s.as_str()).collect()),
+            "cp" => commands::cp::cp(args[1..].iter().map(|s| s.as_str()).collect()),
+            "mv" => commands::mv::mv(args[1..].iter().map(|s| s.as_str()).collect()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }
