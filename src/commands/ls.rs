@@ -78,7 +78,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
         }
     };
 
-    let mut no_flag_or_a_f = Vec::new();
+    let mut no_flag_or_a_f: Vec<(String, String)> = Vec::new();
     let mut flag_l = Vec::new();
     let mut total = 0;
 
@@ -94,9 +94,9 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             }
 
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l);
+                add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
             } else {
-                no_flag_or_a_f.push(name.blue().bold().to_string());
+                no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
             }
         }
 
@@ -118,9 +118,9 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                 }
 
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l);
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
                 } else {
-                    no_flag_or_a_f.push(name.blue().bold().to_string());
+                    no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
             }
         } else {
@@ -134,9 +134,9 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                 }
 
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l);
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
                 } else {
-                    no_flag_or_a_f.push(name.blue().bold().to_string());
+                    no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
             }
         }
@@ -152,23 +152,13 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             let meta_data = en.metadata().unwrap();
             // let debug_output: String = format!("{:?}", meta_data.permissions());
 
-            total += meta_data.st_blocks() / 2;
-
             if !a && name.starts_with(".") {
                 continue;
             }
 
-            let st = flag_f(perms(meta_data.clone()));
+            total += meta_data.st_blocks() / 2;
 
-            // color o kda
-            name = match st {
-                "/" => name.blue().bold().to_string(),
-                "@" => name.cyan().bold().to_string(),
-                "|" => name.red().bold().to_string(),
-                "=" => name.purple().bold().to_string(),
-                "*" => name.green().bold().to_string(),
-                _ => name,
-            };
+            let st = flag_f(perms(meta_data.clone()));
 
             if f {
                 name.push_str(&st);
@@ -176,23 +166,37 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
 
             // add l atawich
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l);
+                add_to_flag_l(&name, meta_data, &mut flag_l, st.to_string());
             } else {
-                no_flag_or_a_f.push(name);
+                no_flag_or_a_f.push((name, st.to_string()));
             }
         }
     }
 
     if l {
+        sort_l(&mut flag_l, a);
         println!("total {}", total);
         format_flag_l(flag_l);
     } else {
-        let sorted = no_flag_or_a_f.join(" ");
-        println!("{}", sorted);
+        sort(&mut no_flag_or_a_f, a);
+        format_flag(no_flag_or_a_f);
+        // println!(
+        //     "{}",
+        //     no_flag_or_a_f
+        //         .iter()
+        //         .map(|f| f.0.clone())
+        //         .collect::<Vec<String>>()
+        //         .join(" ")
+        // )
     }
 }
 
-fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<String>>) {
+fn add_to_flag_l(
+    name: &str,
+    meta_data: fs::Metadata,
+    flag_l: &mut Vec<Vec<String>>,
+    color: String,
+) {
     // let debug_output = format!("{:?}", meta_data.permissions());
     let perms_str = perms(meta_data.clone());
     let nlink = meta_data.st_nlink();
@@ -217,6 +221,7 @@ fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<Strin
 
     flag_l.push(
         [
+            color,
             perms_str,
             nlink.to_string(),
             username,
@@ -303,10 +308,14 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
 
     for rows in flag.into_iter() {
         for (i, v) in rows[..rows.len() - 1].iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
+
             let mut st = String::new();
             let n = sizes[i] - v.len();
 
-            if i == 2 || i == 3 {
+            if i == 3 || i == 4 {
                 st.push_str(v);
                 st.push_str(&" ".repeat(n));
             } else {
@@ -322,6 +331,59 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
         result.push(name);
         println!("{}", result.join(" "));
         result.clear();
+    }
+}
+
+fn format_flag(files: Vec<(String, String)>) {
+    let term_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
+    let filenames: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
+
+    let mut max = 0;
+
+    for file in &filenames {
+        if max < file.len() + 2 {
+            max = file.len() + 2;
+        }
+    }
+
+    let mut step = if max > 0 { term_width / max } else { 1 };
+    step = if step == 0 { 1 } else { step };
+
+    let mut ve: Vec<Vec<String>> = Vec::new();
+    let mut r: Vec<String> = Vec::new();
+
+    for (i, name) in filenames.iter().enumerate() {
+        if step <= i {
+            ve.push(r.clone());
+            r.clear();
+            step += i;
+        }
+
+        r.push(name.clone());
+    }
+
+    if step > r.len() {
+        for _i in 0..step - r.len() {
+            r.push("".to_string());
+        }
+    }
+
+    ve.push(r);
+
+    // println!("{:?}", ve);
+
+    let mut i = 0;
+
+    while i < ve.len() {
+        for j in &ve {
+            if j[i] == "" {
+                continue;
+            }
+            print!("{} ", j[i]);
+        }
+        println!();
+
+        i += 1;
     }
 }
 
@@ -341,19 +403,70 @@ fn flag_f(perms: String) -> &'static str {
     st
 }
 
-// fn sort(files: &mut Vec<Vec<String>>) {
-//     files.sort_by(|a, b| {
-//         // let one = a[a.len() - 1]
-//         //     .chars()
-//         //     .filter(|c| c.is_alphanumeric())
-//         //     .next();
-//         // let two = b[b.len() - 1]
-//         //     .chars()
-//         //     .filter(|c| c.is_alphanumeric())
-//         //     .next();
+fn sort_l(files: &mut Vec<Vec<String>>, a: bool) {
+    if a {
+        *files = files[2..].to_vec();
+    }
 
-//         println!("{:?} {:?}", a, b);
+    files.sort_by(|a, b| {
+        let one = a[a.len() - 1]
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect::<String>();
+        let two = b[b.len() - 1]
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect::<String>();
 
-//         a.cmp(&b)
-//     });
-// }
+        one.cmp(&two)
+    });
+
+    for f in files.iter_mut() {
+        let prefix = f[0].clone();
+        let last_index = f.len() - 1;
+        let content = f[last_index].clone();
+
+        f[last_index] = match prefix.as_str() {
+            "/" => content.blue().bold().to_string(),
+            "@" => content.cyan().bold().to_string(),
+            "|" => content.red().bold().to_string(),
+            "=" => content.purple().bold().to_string(),
+            "*" => content.green().bold().to_string(),
+            _ => content,
+        };
+    }
+}
+
+fn sort(files: &mut Vec<(String, String)>, a: bool) {
+    if a {
+        *files = files[2..].to_vec();
+    }
+
+    files.sort_by(|a, b| {
+        let one =
+            a.0.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>();
+        let two =
+            b.0.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>();
+        one.to_lowercase().cmp(&two.to_lowercase())
+    });
+
+    for f in files.iter_mut() {
+        let prefix = f.1.clone();
+        let content = f.0.clone();
+
+        f.0 = match prefix.as_str() {
+            "/" => content.blue().bold().to_string(),
+            "@" => content.cyan().bold().to_string(),
+            "|" => content.red().bold().to_string(),
+            "=" => content.purple().bold().to_string(),
+            "*" => content.green().bold().to_string(),
+            _ => content,
+        };
+    }
+}

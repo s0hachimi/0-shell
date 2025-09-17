@@ -51,7 +51,7 @@ fn main() {
         let current_path = commands::pwd::pwd();
 
         print!("{} $ ", current_path.cyan().bold());
-        stdout().flush().unwrap();
+        // stdout().flush().unwrap();
 
         let  (input,quote_open) = read_complete_input();
       
@@ -82,7 +82,7 @@ fn main() {
                 println!("{}", pwd);
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
-            // "ls" => commands::ls::ls(args[1..].to_vec()),
+            "ls" => commands::ls::ls(args[1..].to_vec()),
             "cat" => commands::cat::cat(args[1..].to_vec()),
             "rm" => commands::rm::rm(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
