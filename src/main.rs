@@ -33,6 +33,7 @@ fn read_complete_input() -> (String,bool) {
         } else {
             // Show different prompt while waiting for closing quote
             print!("quote> ");
+            stdout().flush().unwrap();
             check_quote = true;
 
         }
@@ -40,6 +41,42 @@ fn read_complete_input() -> (String,bool) {
 
     (input,check_quote)
 }
+
+fn parse_arguments(input: &str) -> Vec<String> {
+    let mut args = Vec::new();
+    let mut current_arg = String::new();
+    let mut in_quotes = false;
+    let mut quote_char = '"';
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '"' | '\'' if !in_quotes => {
+                in_quotes = true;
+                quote_char = ch;
+            }
+            ch if ch == quote_char && in_quotes => {
+                in_quotes = false;
+            }
+            ' ' | '\t' if !in_quotes => {
+                if !current_arg.is_empty() {
+                    args.push(current_arg.clone());
+                    current_arg.clear();
+                }
+            }
+            _ => {
+                current_arg.push(ch);
+            }
+        }
+    }
+
+    if !current_arg.is_empty() {
+        args.push(current_arg);
+    }
+
+    args
+}
+
 fn main() {
     
     match fs::read_to_string("./src/art.txt") {
@@ -51,7 +88,7 @@ fn main() {
         let current_path = commands::pwd::pwd();
 
         print!("{} $ ", current_path.cyan().bold());
-        // stdout().flush().unwrap();
+        stdout().flush().unwrap();
 
         let  (input,quote_open) = read_complete_input();
       
@@ -67,11 +104,15 @@ fn main() {
             break;
         }
 
-        let args: Vec<&str> = input.split_whitespace().collect();
+        let args = parse_arguments(&input);
 
-        match args[0] {
-            "echo" => commands::echo::echo(args[1..].to_vec(),quote_open),
-            "cd" => commands::cd::cd(args[1..].to_vec()),
+        if args.is_empty() {
+            continue;
+        }
+
+        match args[0].as_str() {
+            "echo" => commands::echo::echo(args[1..].iter().map(|s| s.as_str()).collect(),quote_open),
+            "cd" => commands::cd::cd(args[1..].iter().map(|s| s.as_str()).collect()),
             "pwd" => {
                 if args.len() > 1 {
                     println!("pwd: too many arguments");
@@ -81,10 +122,11 @@ fn main() {
                 let pwd = commands::pwd::pwd();
                 println!("{}", pwd);
             }
-            "clear" => commands::clear::clear(args[1..].to_vec()),
-            "ls" => commands::ls::ls(args[1..].to_vec()),
-            "cat" => commands::cat::cat(args[1..].to_vec()),
-            "rm" => commands::rm::rm(args[1..].to_vec()),
+            "clear" => commands::clear::clear(args[1..].iter().map(|s| s.as_str()).collect()),
+            "ls" => commands::ls::ls(args[1..].iter().map(|s| s.as_str()).collect()),
+            "cat" => commands::cat::cat(args[1..].iter().map(|s| s.as_str()).collect()),
+            "rm" => commands::rm::rm(args[1..].iter().map(|s| s.as_str()).collect()),
+            "mkdir" => commands::mkdir::mkdir(args[1..].iter().map(|s| s.as_str()).collect()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }

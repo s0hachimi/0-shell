@@ -335,56 +335,21 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
 }
 
 fn format_flag(files: Vec<(String, String)>) {
-    let term_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
-    let filenames: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
-
-    let mut max = 0;
-
-    for file in &filenames {
-        if max < file.len() + 2 {
-            max = file.len() + 2;
-        }
+    // Simple approach: print files separated by spaces on the same line
+    let names: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
+    
+    if names.is_empty() {
+        return;
     }
-
-    let mut step = if max > 0 { term_width / max } else { 1 };
-    step = if step == 0 { 1 } else { step };
-
-    let mut ve: Vec<Vec<String>> = Vec::new();
-    let mut r: Vec<String> = Vec::new();
-
-    for (i, name) in filenames.iter().enumerate() {
-        if step <= i {
-            ve.push(r.clone());
-            r.clear();
-            step += i;
+    
+    // Print all files on one line, separated by spaces
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            print!(" ");
         }
-
-        r.push(name.clone());
+        print!("{}", name);
     }
-
-    if step > r.len() {
-        for _i in 0..step - r.len() {
-            r.push("".to_string());
-        }
-    }
-
-    ve.push(r);
-
-    // println!("{:?}", ve);
-
-    let mut i = 0;
-
-    while i < ve.len() {
-        for j in &ve {
-            if j[i] == "" {
-                continue;
-            }
-            print!("{} ", j[i]);
-        }
-        println!();
-
-        i += 1;
-    }
+    println!();
 }
 
 fn flag_f(perms: String) -> &'static str {
