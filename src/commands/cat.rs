@@ -2,13 +2,16 @@ use std::fs;
 use std::{ io::*};
 pub fn cat(files: Vec<&str>) {
     if files.is_empty() || files[0] == "-"{
-     loop {
         let mut input = String::new();
+     loop {
+        let mut line = String::new();
         stdout().flush().unwrap();
-         if stdin().read_line(&mut input).is_err() {
-            eprintln!("Failed to read line");
-            continue;
+          match stdin().read_line(&mut line) {
+            Ok(0) => break, // Ctrl+D
+            Ok(_) => {}
+            Err(_) => { eprintln!("Failed to read line"); continue; }
         }
+        input.push_str(&line);
         print!("{}",input);
       }
     }

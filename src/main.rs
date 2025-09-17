@@ -23,9 +23,6 @@ fn read_complete_input() -> (String,bool) {
                 continue;
             }
         }
-    
-        
-
         input.push_str(&line);
 
         // Count number of quotes
@@ -73,7 +70,7 @@ fn main() {
         let args: Vec<&str> = input.split_whitespace().collect();
 
         match args[0] {
-            "echo" => commands::echo::echo(&args[1..].join(" "),quote_open),
+            "echo" => commands::echo::echo(args[1..].to_vec(),quote_open),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
@@ -85,7 +82,7 @@ fn main() {
                 println!("{}", pwd);
             }
             "clear" => commands::clear::clear(args[1..].to_vec()),
-            "ls" => commands::ls::ls(args[1..].to_vec()),
+            // "ls" => commands::ls::ls(args[1..].to_vec()),
             "cat" => commands::cat::cat(args[1..].to_vec()),
             "rm" => commands::rm::rm(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
