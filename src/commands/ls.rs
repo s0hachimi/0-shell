@@ -32,14 +32,17 @@ pub fn ls(mut args: Vec<&str>) {
 
     for flag in args {
         if flag.starts_with("-") {
-            if !l {
-                l = flag.contains("l");
-            }
-            if !a {
-                a = flag.contains("a");
-            }
-            if !f {
-                f = flag.contains("F");
+            let flag_chars = &flag[1..]; // Remove the '-' prefix
+            for c in flag_chars.chars() {
+                match c {
+                    'l' => if !l { l = true; },
+                    'a' => if !a { a = true; },
+                    'F' => if !f { f = true; },
+                    _ => {
+                        println!("ls: invalid option -- '{}'", c);
+                        return;
+                    }
+                }
             }
         }
     }
