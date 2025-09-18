@@ -1,18 +1,21 @@
 use std::{fs, io::*};
 mod commands;
 use colored::*;
-fn read_complete_input() -> (String,bool) {
+
+fn read_complete_input() -> (String, bool, bool) {
     let mut input = String::new();
     let mut check_quote = false;
     let mut inp = String::new();
+    let mut ctr_d = false;
 
     loop {
         let mut line = String::new();
         stdout().flush().unwrap();
 
-     match stdin().read_line(&mut line) {
+        match stdin().read_line(&mut line) {
             Ok(0) => {
-                println!(); 
+                ctr_d = true;
+                println!();
                 break;
             }
             Ok(_) => {}
@@ -23,80 +26,39 @@ fn read_complete_input() -> (String,bool) {
         }
         input.push_str(&line);
 
-         // Count number of quotes
+        // Count number of quotes
         // let quote_count = input.chars().filter(|&c| c == '"' || c == '\'').count();
         let chars: Vec<char> = input.chars().collect();
         let mut quote_count = 0;
-       
-        for (i, &c) in chars.iter().enumerate() { 
-            if c == '"'  {
+
+        for (i, &c) in chars.iter().enumerate() {
+            if c == '"' {
                 // check_quote = true;
-            if i == 0 || chars[i - 1] != '\\' {
+                if i == 0 || chars[i - 1] != '\\' {
+                    quote_count += 1;
+                    continue;
+                }
+            } else if c == '\'' {
+                check_quote = true;
                 quote_count += 1;
                 continue;
-
+            } else {
+                inp.push(c)
             }
-
-        } else if c == '\'' {
-            check_quote = true;
-             quote_count += 1;
-                continue;
-
-        }else {
-            inp.push(c)
         }
 
-    }
-
-           if quote_count % 2 == 0 {
+        if quote_count % 2 == 0 {
             break;
         } else {
             // Show different prompt while waiting for closing quote
             print!("quote> ");
             inp.clear()
-
         }
     }
-    (inp,check_quote)
-}
-
-fn parse_arguments(input: &str) -> Vec<String> {
-    let mut args = Vec::new();
-    let mut current_arg = String::new();
-    let mut in_quotes = false;
-    let mut quote_char = '"';
-    let mut chars = input.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        match ch {
-            '"' | '\'' if !in_quotes => {
-                in_quotes = true;
-                quote_char = ch;
-            }
-            ch if ch == quote_char && in_quotes => {
-                in_quotes = false;
-            }
-            ' ' | '\t' if !in_quotes => {
-                if !current_arg.is_empty() {
-                    args.push(current_arg.clone());
-                    current_arg.clear();
-                }
-            }
-            _ => {
-                current_arg.push(ch);
-            }
-        }
-    }
-
-    if !current_arg.is_empty() {
-        args.push(current_arg);
-    }
-
-    args
+    (inp, check_quote, ctr_d)
 }
 
 fn main() {
-    
     match fs::read_to_string("./src/art.txt") {
         Ok(content) => println!("{}\n", content.bright_blue().bold()),
         Err(e) => eprintln!("{}", e),
@@ -108,8 +70,11 @@ fn main() {
         print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
-        let  (input,quote_open) = read_complete_input();
-      
+        let (input, quote_open, ctr_d) = read_complete_input();
+
+        if ctr_d {
+            break;
+        }
 
         let input = input.trim();
 
@@ -122,15 +87,15 @@ fn main() {
             break;
         }
 
-        let args = parse_arguments(&input);
+        let args: Vec<&str> = input.split_whitespace().collect();
 
         if args.is_empty() {
             continue;
         }
 
-        match args[0].as_str() {
-            "echo" => commands::echo::echo(args[1..].iter().map(|s| s.as_str()).collect(),quote_open),
-            "cd" => commands::cd::cd(args[1..].iter().map(|s| s.as_str()).collect()),
+        match args[0] {
+            "echo" => commands::echo::echo(args[1..].to_vec(), quote_open),
+            "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
                     println!("pwd: too many arguments");
@@ -140,13 +105,13 @@ fn main() {
                 let pwd = commands::pwd::pwd();
                 println!("{}", pwd);
             }
-            "clear" => commands::clear::clear(args[1..].iter().map(|s| s.as_str()).collect()),
-            "ls" => commands::ls::ls(args[1..].iter().map(|s| s.as_str()).collect()),
-            "cat" => commands::cat::cat(args[1..].iter().map(|s| s.as_str()).collect()),
-            "rm" => commands::rm::rm(args[1..].iter().map(|s| s.as_str()).collect()),
-            "mkdir" => commands::mkdir::mkdir(args[1..].iter().map(|s| s.as_str()).collect()),
-            "cp" => commands::cp::cp(args[1..].iter().map(|s| s.as_str()).collect()),
-            "mv" => commands::mv::mv(args[1..].iter().map(|s| s.as_str()).collect()),
+            "clear" => commands::clear::clear(args[1..].to_vec()),
+            "ls" => commands::ls::ls(args[1..].to_vec()),
+            "cat" => commands::cat::cat(args[1..].to_vec()),
+            "rm" => commands::rm::rm(args[1..].to_vec()),
+            "mkdir" => commands::mkdir::mkdir(args[1..].to_vec()),
+            "cp" => commands::cp::cp(args[1..].to_vec()),
+            "mv" => commands::mv::mv(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }

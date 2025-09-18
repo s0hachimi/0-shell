@@ -1,9 +1,12 @@
 use chrono::{Duration, Local, NaiveDateTime, TimeZone};
 use colored::Colorize;
+use libc::{major, minor};
 use std::{
     fs,
     os::{linux::fs::MetadataExt, unix::fs::FileTypeExt},
+    path::Path,
 };
+
 use users::{get_group_by_gid, get_user_by_uid};
 
 use crate::commands::pwd::pwd;
@@ -93,8 +96,10 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                 name.push('/');
             }
 
+            let perms_str = perms(meta_data.clone(), Path::new(&name));
+
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
+                add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
             } else {
                 no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
             }
@@ -117,8 +122,10 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                     name.push('/');
                 }
 
+                let perms_str = perms(meta_data.clone(), Path::new(&name));
+
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
                 } else {
                     no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
@@ -133,8 +140,10 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                     name.push('/');
                 }
 
+                let perms_str = perms(meta_data.clone(), Path::new(&name));
+
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string());
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
                 } else {
                     no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
@@ -158,15 +167,25 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
 
             total += meta_data.st_blocks() / 2;
 
-            let st = flag_f(perms(meta_data.clone()));
+            let perm_str = perms(meta_data.clone(), &en.path());
+
+            let st = flag_f(perm_str.clone());
 
             if f {
-                name.push_str(&st);
+                if l && st != "@" || !l {
+                    name.push_str(&st);
+                }
+            }
+
+            if perm_str.contains("l") && l {
+                if let Ok(target) = fs::read_link(&en.path()) {
+                    name.push_str(&format!(" -> {}", target.display()));
+                }
             }
 
             // add l atawich
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l, st.to_string());
+                add_to_flag_l(&name, meta_data, &mut flag_l, st.to_string(), perm_str);
             } else {
                 no_flag_or_a_f.push((name, st.to_string()));
             }
@@ -196,13 +215,23 @@ fn add_to_flag_l(
     meta_data: fs::Metadata,
     flag_l: &mut Vec<Vec<String>>,
     color: String,
+    perms_str: String,
 ) {
     // let debug_output = format!("{:?}", meta_data.permissions());
-    let perms_str = perms(meta_data.clone());
+    // let perms_str = perms(meta_data.clone(), Path::new(&name));
     let nlink = meta_data.st_nlink();
     let uid = meta_data.st_uid();
     let gid = meta_data.st_gid();
-    let size = meta_data.st_size();
+    let size = if meta_data.file_type().is_char_device() || meta_data.file_type().is_block_device()
+    {
+        let rdev = meta_data.st_rdev();
+        let major_num = major(rdev);
+        let minor_num = minor(rdev);
+
+        format!("{}, {}", major_num, minor_num)
+    } else {
+        meta_data.st_size().to_string()
+    };
 
     let mtime = meta_data.st_mtime();
     #[allow(deprecated)]
@@ -226,7 +255,7 @@ fn add_to_flag_l(
             nlink.to_string(),
             username,
             groupname,
-            size.to_string(),
+            size,
             datetime,
             name.to_string(),
         ]
@@ -234,7 +263,7 @@ fn add_to_flag_l(
     );
 }
 
-fn perms(meta_data: fs::Metadata) -> String {
+fn perms(meta_data: fs::Metadata, path: &Path) -> String {
     let mode = meta_data.st_mode();
 
     let owner = (mode & 0o700) >> 6;
@@ -287,6 +316,17 @@ fn perms(meta_data: fs::Metadata) -> String {
         perm_str.push(if others & 0o1 != 0 { 'x' } else { '-' });
     }
 
+    let attr_len = unsafe {
+        libc::listxattr(
+            path.to_str().unwrap_or("").as_ptr() as *const _,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if attr_len > 0 {
+        perm_str.push('+');
+    }
+
     perm_str
 }
 
@@ -315,7 +355,7 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
             let mut st = String::new();
             let n = sizes[i] - v.len();
 
-            if i == 3 || i == 4 {
+            if i == 3 || i == 4 || i == 1 {
                 st.push_str(v);
                 st.push_str(&" ".repeat(n));
             } else {
