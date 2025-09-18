@@ -335,21 +335,78 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
 }
 
 fn format_flag(files: Vec<(String, String)>) {
-    // Simple approach: print files separated by spaces on the same line
     let names: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
     
     if names.is_empty() {
         return;
     }
     
-    // Print all files on one line, separated by spaces
-    for (i, name) in names.iter().enumerate() {
-        if i > 0 {
-            print!(" ");
+    // Get terminal width, default to 80 if unable to determine
+    let terminal_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
+    
+    // Find the maximum length of file names (without ANSI codes for calculation)
+    let max_name_len = names.iter()
+        .map(|name| strip_ansi_codes(name).len())
+        .max()
+        .unwrap_or(0);
+    
+    // Add some padding between columns
+    let column_width = max_name_len + 2;
+    
+    // Calculate number of columns that fit in terminal width
+    let num_columns = if column_width > 0 {
+        (terminal_width / column_width).max(1)
+    } else {
+        1
+    };
+    
+    // Calculate number of rows needed
+    let num_rows = (names.len() + num_columns - 1) / num_columns;
+    
+    // Print the table
+    for row in 0..num_rows {
+        for col in 0..num_columns {
+            let index = row + col * num_rows;
+            if index < names.len() {
+                let name = &names[index];
+                let stripped_len = strip_ansi_codes(name).len();
+                print!("{}", name);
+                
+                // Add padding for alignment, except for the last column
+                if col < num_columns - 1 && index + num_rows < names.len() {
+                    let padding = column_width - stripped_len;
+                    print!("{}", " ".repeat(padding));
+                }
+            }
         }
-        print!("{}", name);
+        println!();
     }
-    println!();
+}
+
+// Helper function to strip ANSI color codes for length calculation
+fn strip_ansi_codes(text: &str) -> String {
+    let mut result = String::new();
+    let mut in_escape = false;
+    let mut chars = text.chars();
+    
+    while let Some(ch) = chars.next() {
+        if ch == '\x1B' {
+            in_escape = true;
+            // Skip the escape sequence
+            if chars.next() == Some('[') {
+                // Skip until we find the ending character (letter)
+                while let Some(esc_ch) = chars.next() {
+                    if esc_ch.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+            in_escape = false;
+        } else if !in_escape {
+            result.push(ch);
+        }
+    }
+    result
 }
 
 fn flag_f(perms: String) -> &'static str {

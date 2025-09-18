@@ -12,13 +12,10 @@ fn read_complete_input() -> (String,bool) {
 
      match stdin().read_line(&mut line) {
             Ok(0) => {
-                // Ctrl+D pressed (EOF)
-                println!(); // Add newline for clean exit
+                println!(); 
                 break;
             }
-            Ok(_) => {
-                // Successfully read input
-            }
+            Ok(_) => {}
             Err(_) => {
                 eprintln!("Failed to read line");
                 continue;
@@ -60,7 +57,6 @@ fn read_complete_input() -> (String,bool) {
 
         }
     }
-
     (inp,check_quote)
 }
 

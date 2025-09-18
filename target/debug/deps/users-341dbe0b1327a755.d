@@ -1,0 +1,12 @@
+/home/mojebbari/Desktop/0-shell/target/debug/deps/libusers-341dbe0b1327a755.rmeta: /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/lib.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/base.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/cache.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/mock.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/switch.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/traits.rs
+
+/home/mojebbari/Desktop/0-shell/target/debug/deps/libusers-341dbe0b1327a755.rlib: /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/lib.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/base.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/cache.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/mock.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/switch.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/traits.rs
+
+/home/mojebbari/Desktop/0-shell/target/debug/deps/users-341dbe0b1327a755.d: /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/lib.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/base.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/cache.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/mock.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/switch.rs /home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/traits.rs
+
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/lib.rs:
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/base.rs:
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/cache.rs:
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/mock.rs:
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/switch.rs:
+/home/mojebbari/.cargo/registry/src/index.crates.io-6f17d22bba15001f/users-0.11.0/src/traits.rs:
