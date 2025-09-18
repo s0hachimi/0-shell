@@ -4,6 +4,7 @@ use colored::*;
 fn read_complete_input() -> (String,bool) {
     let mut input = String::new();
     let mut check_quote = false;
+    let mut inp = String::new();
 
     loop {
         let mut line = String::new();
@@ -25,21 +26,42 @@ fn read_complete_input() -> (String,bool) {
         }
         input.push_str(&line);
 
-        // Count number of quotes
-        let quote_count = input.chars().filter(|&c| c == '"' || c == '\'').count();
+         // Count number of quotes
+        // let quote_count = input.chars().filter(|&c| c == '"' || c == '\'').count();
+        let chars: Vec<char> = input.chars().collect();
+        let mut quote_count = 0;
+       
+        for (i, &c) in chars.iter().enumerate() { 
+            if c == '"'  {
+                // check_quote = true;
+            if i == 0 || chars[i - 1] != '\\' {
+                quote_count += 1;
+                continue;
 
-        if quote_count % 2 == 0 {
+            }
+
+        } else if c == '\'' {
+            check_quote = true;
+             quote_count += 1;
+                continue;
+
+        }else {
+            inp.push(c)
+        }
+
+    }
+
+           if quote_count % 2 == 0 {
             break;
         } else {
             // Show different prompt while waiting for closing quote
             print!("quote> ");
-            stdout().flush().unwrap();
-            check_quote = true;
+            inp.clear()
 
         }
     }
 
-    (input,check_quote)
+    (inp,check_quote)
 }
 
 fn parse_arguments(input: &str) -> Vec<String> {
