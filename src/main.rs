@@ -24,7 +24,12 @@ fn read_complete_input() -> (String, bool, bool) {
                 continue;
             }
         }
-        input.push_str(&line);
+        // Filter out escape sequences, control characters, and non-ASCII
+        let filtered_line: String = line.chars().filter(|c| {
+            // Only allow printable ASCII (space to ~), newline, and tab
+            (*c >= ' ' && *c <= '~') || *c == '\n' || *c == '\t'
+        }).collect();
+        input.push_str(&filtered_line);
 
         // Count number of quotes
         // let quote_count = input.chars().filter(|&c| c == '"' || c == '\'').count();
@@ -127,7 +132,7 @@ fn main() {
         println!("{:?}", splited.clone());
         let args: Vec<&str> = splited.iter().map(|s| s.as_str()).collect();
 
-        if args.is_empty() {
+        if args.is_empty()  {
             continue;
         }
 
