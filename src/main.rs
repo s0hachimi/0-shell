@@ -2,8 +2,90 @@ use std::{fs, io::*};
 mod commands;
 use colored::*;
 
+fn read_complete_input() -> (String, bool, bool) {
+    let mut input = String::new();
+    let mut check_quote = false;
+    let mut inp = String::new();
+    let mut ctr_d = false;
+
+    loop {
+        let mut line = String::new();
+        stdout().flush().unwrap();
+
+        match stdin().read_line(&mut line) {
+            Ok(0) => {
+                ctr_d = true;
+                println!();
+                break;
+            }
+            Ok(_) => {}
+            Err(_) => {
+                eprintln!("Failed to read line");
+                continue;
+            }
+        }
+
+        let filtered_line: String = line.chars().filter(|c| {
+            // Only allow printable ASCII (space to ~), newline, and tab
+            (*c >= ' ' && *c <= '~') || *c == '\n' || *c == '\t'
+        }).collect();
+        input.push_str(&filtered_line);
+
+        // Count number of quotes
+        let q1 = input.chars().filter(|&c| c == '\'').count();
+         let q2 = input.chars().filter(|&c| c == '"').count();
+
+        if (q1 % 2 == 0 && input.contains("'"))  || (q2 % 2 == 0 && input.contains('"')) {
+            
+            break;
+        } else if !input.contains("'") || !input.contains('"') {
+            break;
+        } else {
+            check_quote = true;
+            print!("quote> ");
+            inp.clear()
+        }
+    }
+    (input, check_quote, ctr_d)
+}
+
+
+fn split(input: String) -> Vec<String> {
+    let mut st = String::new();
+    let mut ve = Vec::new();
+
+    let mut in_single = false;
+    let mut in_double = false;
+
+    for c in input.chars() {
+        if c == '\'' && !in_double {
+            in_single = !in_single;
+            continue;
+        }
+
+        if c == '"' && !in_single {
+            in_double = !in_double;
+            continue;
+        }
+
+        if c == ' ' && !in_single && !in_double {
+            if !st.is_empty() {
+                ve.push(st.clone());
+                st.clear();
+            }
+        } else {
+            st.push(c);
+        }
+    }
+
+    if !st.is_empty() {
+        ve.push(st);
+    }
+
+    ve
+}
+
 fn main() {
-    
     match fs::read_to_string("./src/art.txt") {
         Ok(content) => println!("{}\n", content.bright_blue().bold()),
         Err(e) => eprintln!("{}", e),
@@ -15,10 +97,10 @@ fn main() {
         print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
-        let mut input = String::new();
-        if stdin().read_line(&mut input).is_err() {
-            eprintln!("Failed to read line");
-            continue;
+        let (input, quote_open, ctr_d) = read_complete_input();
+
+        if ctr_d {
+            break;
         }
 
         let input = input.trim();
@@ -32,10 +114,16 @@ fn main() {
             break;
         }
 
-        let args: Vec<&str> = input.split_whitespace().collect();
+        let splited = split(input.to_string());
+
+        let args: Vec<&str> = splited.iter().map(|s| s.as_str()).collect();
+
+        if args.is_empty()  {
+            continue;
+        }
 
         match args[0] {
-            "echo" => commands::echo::echo(&args[1..].join(" ")),
+            "echo" => commands::echo::echo(args[1..].to_vec(), quote_open),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
@@ -50,6 +138,9 @@ fn main() {
             "ls" => commands::ls::ls(args[1..].to_vec()),
             "cat" => commands::cat::cat(args[1..].to_vec()),
             "rm" => commands::rm::rm(args[1..].to_vec()),
+            "mkdir" => commands::mkdir::mkdir(args[1..].to_vec()),
+            "cp" => commands::cp::cp(args[1..].to_vec()),
+            "mv" => commands::mv::mv(args[1..].to_vec()),
             _ => println!("Command {} not found", args[0].red().bold()),
         }
     }

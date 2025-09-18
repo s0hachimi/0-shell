@@ -1,6 +1,12 @@
 use chrono::{Duration, Local, NaiveDateTime, TimeZone};
 use colored::Colorize;
-use std::{fs, os::linux::fs::MetadataExt};
+use libc::{major, minor};
+use std::{
+    fs,
+    os::{linux::fs::MetadataExt, unix::fs::FileTypeExt},
+    path::Path,
+};
+
 use users::{get_group_by_gid, get_user_by_uid};
 
 use crate::commands::pwd::pwd;
@@ -26,9 +32,18 @@ pub fn ls(mut args: Vec<&str>) {
 
     for flag in args {
         if flag.starts_with("-") {
-            l = flag.contains("l");
-            a = flag.contains("a");
-            f = flag.contains("F");
+            let flag_chars = &flag[1..]; // Remove the '-' prefix
+            for c in flag_chars.chars() {
+                match c {
+                    'l' => if !l { l = true; },
+                    'a' => if !a { a = true; },
+                    'F' => if !f { f = true; },
+                    _ => {
+                        println!("ls: invalid option -- '{}'", c);
+                        return;
+                    }
+                }
+            }
         }
     }
 
@@ -53,7 +68,38 @@ pub fn ls(mut args: Vec<&str>) {
 }
 
 fn ls_output(l: bool, a: bool, f: bool, path: String) {
+    let mut no_flag_or_a_f: Vec<(String, String)> = Vec::new();
+    let mut flag_l = Vec::new();
+    let mut total = 0;
+
     let dir_path = std::path::Path::new(&path);
+
+    let metadata = match fs::metadata(&path) {
+        Ok(meta) => meta,
+        Err(e) => {
+            println!("ls: cannot access '{}': {}", path, e);
+            return;
+        }
+    };
+
+    // ls files
+    if metadata.is_file()
+        || metadata.file_type().is_char_device()
+        || metadata.file_type().is_block_device()
+    {
+        if l {
+            let perm_str = perms(metadata.clone(), dir_path);
+
+            let st = flag_f(perm_str.clone());
+
+            add_to_flag_l(&path, metadata, &mut flag_l, st.to_string(), perm_str);
+            format_flag_l(flag_l);
+        } else {
+            println!("{}", path);
+        }
+
+        return;
+    }
 
     let dir = match fs::read_dir(path.clone()) {
         Ok(dir) => dir,
@@ -64,6 +110,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                     path.clone(),
                     &n.to_string()[..n.to_string().len() - 13]
                 );
+            } else if n.to_string().contains("Not a directory") {
             } else {
                 println!(
                     "ls: cannot access '{}': {}",
@@ -75,25 +122,23 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
         }
     };
 
-    let mut no_flag_or_a_f = Vec::new();
-    let mut flag_l = Vec::new();
-    let mut total = 0;
-
     // Add . and ..
     if a {
         // Add current directory (.)
         if let Ok(meta_data) = fs::metadata(dir_path) {
             total += meta_data.st_blocks() / 2;
 
-            let mut name = ".".to_string();
+            let mut name = ".".blue().bold().to_string();
             if f {
                 name.push('/');
             }
 
+            let perms_str = perms(meta_data.clone(), Path::new(&name));
+
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l);
+                add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
             } else {
-                no_flag_or_a_f.push(name.blue().bold().to_string());
+                no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
             }
         }
 
@@ -109,15 +154,17 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             if let Ok(meta_data) = fs::metadata(parent) {
                 total += meta_data.st_blocks() / 2;
 
-                let mut name = "..".to_string();
+                let mut name = "..".blue().bold().to_string();
                 if f {
                     name.push('/');
                 }
 
+                let perms_str = perms(meta_data.clone(), Path::new(&name));
+
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l);
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
                 } else {
-                    no_flag_or_a_f.push(name.blue().bold().to_string());
+                    no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
             }
         } else {
@@ -125,15 +172,17 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             if let Ok(meta_data) = fs::metadata(dir_path) {
                 total += meta_data.st_blocks() / 2;
 
-                let mut name = "..".to_string();
+                let mut name = "..".blue().bold().to_string();
                 if f {
                     name.push('/');
                 }
 
+                let perms_str = perms(meta_data.clone(), Path::new(&name));
+
                 if l {
-                    add_to_flag_l(&name, meta_data, &mut flag_l);
+                    add_to_flag_l(&name, meta_data, &mut flag_l, "/".to_string(), perms_str);
                 } else {
-                    no_flag_or_a_f.push(name.blue().bold().to_string());
+                    no_flag_or_a_f.push((name.blue().bold().to_string(), "/".to_string()));
                 }
             }
         }
@@ -147,57 +196,79 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             };
 
             let meta_data = en.metadata().unwrap();
-            let debug_output = format!("{:?}", meta_data.permissions());
-
-            total += meta_data.st_blocks() / 2;
+            // let debug_output: String = format!("{:?}", meta_data.permissions());
 
             if !a && name.starts_with(".") {
                 continue;
             }
 
-            let st = flag_f(perms(debug_output.clone()));
+            total += meta_data.st_blocks() / 2;
 
-            // color o kda
-            name = match st {
-                "/" => name.blue().bold().to_string(),
-                "@" => name.cyan().bold().to_string(),
-                "|" => name.red().bold().to_string(),
-                "=" => name.purple().bold().to_string(),
-                "*" => name.green().bold().to_string(),
-                _ => name,
-            };
+            let perm_str = perms(meta_data.clone(), &en.path());
 
-            
+            let st = flag_f(perm_str.clone());
 
             if f {
-                name.push_str(&st);
+                if l && st != "@" || !l {
+                    name.push_str(&st);
+                }
+            }
+
+            if perm_str.contains("l") && l {
+                if let Ok(target) = fs::read_link(&en.path()) {
+                    name.push_str(&format!(" -> {}", target.display()));
+                }
             }
 
             // add l atawich
             if l {
-                add_to_flag_l(&name, meta_data, &mut flag_l);
+                add_to_flag_l(&name, meta_data, &mut flag_l, st.to_string(), perm_str);
             } else {
-                no_flag_or_a_f.push(name);
+                no_flag_or_a_f.push((name, st.to_string()));
             }
         }
     }
 
     if l {
+        sort_l(&mut flag_l, a);
         println!("total {}", total);
         format_flag_l(flag_l);
     } else {
-        let sorted = no_flag_or_a_f.join(" ");
-        println!("{}", sorted);
+        sort(&mut no_flag_or_a_f, a);
+        format_flag(no_flag_or_a_f);
+        // println!(
+        //     "{}",
+        //     no_flag_or_a_f
+        //         .iter()
+        //         .map(|f| f.0.clone())
+        //         .collect::<Vec<String>>()
+        //         .join(" ")
+        // )
     }
 }
 
-fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<String>>) {
-    let debug_output = format!("{:?}", meta_data.permissions());
-    let perms_str = perms(debug_output);
+fn add_to_flag_l(
+    name: &str,
+    meta_data: fs::Metadata,
+    flag_l: &mut Vec<Vec<String>>,
+    color: String,
+    perms_str: String,
+) {
+    // let debug_output = format!("{:?}", meta_data.permissions());
+    // let perms_str = perms(meta_data.clone(), Path::new(&name));
     let nlink = meta_data.st_nlink();
     let uid = meta_data.st_uid();
     let gid = meta_data.st_gid();
-    let size = meta_data.st_size();
+    let size = if meta_data.file_type().is_char_device() || meta_data.file_type().is_block_device()
+    {
+        let rdev = meta_data.st_rdev();
+        let major_num = major(rdev);
+        let minor_num = minor(rdev);
+
+        format!("{}, {}", major_num, minor_num)
+    } else {
+        meta_data.st_size().to_string()
+    };
 
     let mtime = meta_data.st_mtime();
     #[allow(deprecated)]
@@ -216,11 +287,12 @@ fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<Strin
 
     flag_l.push(
         [
+            color,
             perms_str,
             nlink.to_string(),
             username,
             groupname,
-            size.to_string(),
+            size,
             datetime,
             name.to_string(),
         ]
@@ -228,15 +300,71 @@ fn add_to_flag_l(name: &str, meta_data: fs::Metadata, flag_l: &mut Vec<Vec<Strin
     );
 }
 
-fn perms(perm: String) -> String {
-    let arr: Vec<&str> = perm.split_whitespace().collect();
-    let st = arr[arr.len() - 2];
+fn perms(meta_data: fs::Metadata, path: &Path) -> String {
+    let mode = meta_data.st_mode();
 
-    // if st.chars().any(|f| f.is_numeric()) {
-    //     println!("{}", m);
-    // }
+    let owner = (mode & 0o700) >> 6;
+    let group = (mode & 0o070) >> 3;
+    let others = mode & 0o007;
 
-    st[1..st.len() - 1].to_string()
+    let mut perm_str = String::new();
+
+    let file_type = meta_data.file_type();
+
+    perm_str.push(if file_type.is_dir() {
+        'd'
+    } else if file_type.is_symlink() {
+        'l'
+    } else if file_type.is_fifo() {
+        'p'
+    } else if file_type.is_socket() {
+        's'
+    } else if file_type.is_file() {
+        '-'
+    } else if file_type.is_char_device() {
+        'c'
+    } else if file_type.is_block_device() {
+        'b'
+    } else {
+        '?'
+    });
+
+    perm_str.push(if owner & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if owner & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o4000 != 0 {
+        perm_str.push(if owner & 0o1 != 0 { 's' } else { 'S' });
+    } else {
+        perm_str.push(if owner & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    perm_str.push(if group & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if group & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o2000 != 0 {
+        perm_str.push(if group & 0o1 != 0 { 's' } else { 'S' });
+    } else {
+        perm_str.push(if group & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    perm_str.push(if others & 0o4 != 0 { 'r' } else { '-' });
+    perm_str.push(if others & 0o2 != 0 { 'w' } else { '-' });
+    if mode & 0o1000 != 0 {
+        perm_str.push(if others & 0o1 != 0 { 't' } else { 'T' });
+    } else {
+        perm_str.push(if others & 0o1 != 0 { 'x' } else { '-' });
+    }
+
+    let attr_len = unsafe {
+        libc::listxattr(
+            path.to_str().unwrap_or("").as_ptr() as *const _,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    if attr_len > 0 {
+        perm_str.push('+');
+    }
+
+    perm_str
 }
 
 fn format_flag_l(flag: Vec<Vec<String>>) {
@@ -257,11 +385,21 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
 
     for rows in flag.into_iter() {
         for (i, v) in rows[..rows.len() - 1].iter().enumerate() {
+            if i == 0 {
+                continue;
+            }
+
             let mut st = String::new();
             let n = sizes[i] - v.len();
 
-            st.push_str(&" ".repeat(n));
-            st.push_str(v);
+            if i == 3 || i == 4 || i == 1 {
+                st.push_str(v);
+                st.push_str(&" ".repeat(n));
+            } else {
+                st.push_str(&" ".repeat(n));
+                st.push_str(v);
+            }
+
             result.push(st);
         }
 
@@ -271,6 +409,79 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
         println!("{}", result.join(" "));
         result.clear();
     }
+}
+
+fn format_flag(files: Vec<(String, String)>) {
+    let names: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
+
+    if names.is_empty() {
+        return;
+    }
+
+    // Get terminal width, default to 80 if unable to determine
+    let terminal_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
+
+    // Find the maximum length of file names (without ANSI codes for calculation)
+    let max_name_len = names
+        .iter()
+        .map(|name| strip_ansi_codes(name).len())
+        .max()
+        .unwrap_or(0);
+
+    // Add some padding between columns
+    let column_width = max_name_len + 2;
+
+    // Calculate number of columns that fit in terminal width
+    let num_columns = if column_width > 0 {
+        (terminal_width / column_width).max(1)
+    } else {
+        1
+    };
+
+    // Calculate number of rows needed
+    let num_rows = (names.len() + num_columns - 1) / num_columns;
+
+    // Print the table
+    for row in 0..num_rows {
+        for col in 0..num_columns {
+            let index = row + col * num_rows;
+            if index < names.len() {
+                let name = &names[index];
+                let stripped_len = strip_ansi_codes(name).len();
+                print!("{}", name);
+
+                // Add padding for alignment, except for the last column
+                if col < num_columns - 1 && index + num_rows < names.len() {
+                    let padding = column_width - stripped_len;
+                    print!("{}", " ".repeat(padding));
+                }
+            }
+        }
+        println!();
+    }
+}
+
+// Helper function to strip ANSI color codes for length calculation
+fn strip_ansi_codes(text: &str) -> String {
+    let mut result = String::new();
+    let mut chars = text.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\x1B' {
+            // Skip the escape sequence
+            if chars.next() == Some('[') {
+                // Skip until we find the ending character (letter)
+                while let Some(esc_ch) = chars.next() {
+                    if esc_ch.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            };
+        } else {
+            result.push(ch);
+        }
+    }
+    result
 }
 
 fn flag_f(perms: String) -> &'static str {
@@ -289,6 +500,91 @@ fn flag_f(perms: String) -> &'static str {
     st
 }
 
-// fn sort(forms: &mut Vec<String>)  {
-//     // println!("{:?}", forms)
-// }
+fn sort_l(files: &mut Vec<Vec<String>>, a: bool) {
+    let mut one = Vec::new();
+    let mut two = Vec::new();
+
+    if a {
+        one = files[0].clone();
+        two = files[1].clone();
+        *files = files[2..].to_vec();
+    }
+
+    files.sort_by(|a, b| {
+        let one = a[a.len() - 1]
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect::<String>();
+        let two = b[b.len() - 1]
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .map(|c| c.to_ascii_lowercase())
+            .collect::<String>();
+
+        one.cmp(&two)
+    });
+
+    if a {
+        files.insert(0, one);
+        files.insert(1, two);
+    }
+
+    for f in files.iter_mut() {
+        let prefix = f[0].clone();
+        let last_index = f.len() - 1;
+        let content = f[last_index].clone();
+
+        f[last_index] = match prefix.as_str() {
+            "/" => content.blue().bold().to_string(),
+            "@" => content.cyan().bold().to_string(),
+            "|" => content.red().bold().to_string(),
+            "=" => content.purple().bold().to_string(),
+            "*" => content.green().bold().to_string(),
+            _ => content,
+        };
+    }
+}
+
+fn sort(files: &mut Vec<(String, String)>, a: bool) {
+    let mut one = (String::new(), String::new());
+    let mut two = (String::new(), String::new());
+
+    if a {
+        one = files[0].clone();
+        two = files[1].clone();
+
+        *files = files[2..].to_vec();
+    }
+
+    files.sort_by(|a, b| {
+        let one =
+            a.0.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>();
+        let two =
+            b.0.chars()
+                .filter(|c| c.is_alphanumeric())
+                .collect::<String>();
+        one.to_lowercase().cmp(&two.to_lowercase())
+    });
+
+    if a {
+        files.insert(0, one);
+        files.insert(1, two);
+    }
+
+    for f in files.iter_mut() {
+        let prefix = f.1.clone();
+        let content = f.0.clone();
+
+        f.0 = match prefix.as_str() {
+            "/" => content.blue().bold().to_string(),
+            "@" => content.cyan().bold().to_string(),
+            "|" => content.red().bold().to_string(),
+            "=" => content.purple().bold().to_string(),
+            "*" => content.green().bold().to_string(),
+            _ => content,
+        };
+    }
+}
