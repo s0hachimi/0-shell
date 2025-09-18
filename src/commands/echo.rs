@@ -1,23 +1,29 @@
-pub fn echo(args: Vec<&str>) {
-    let mut no_newline = false;
-    let mut i = 0;
-    if !args.is_empty() && args[0] == "-n" {
-        no_newline = true;
-        i = 1;
+pub fn echo(args: Vec<&str>,quote_open: bool) {
+
+      let output = args.iter().map(|arg|{
+          if arg.contains("\\n") || arg.contains("\\t") || arg.contains("\\r") ||
+          arg.contains("\\a") || arg.contains("\\b") || arg.contains("\\v") ||
+          arg.contains("\\f") || arg.contains("\\\\")  {
+              arg.replace("\\n", "\n")
+              .replace("\\t", "\t")
+              .replace("\\r", "\r")
+              .replace("\\a", "\x07")
+              .replace("\\b", "\x08")
+              .replace("\\v", "\x0B")
+              .replace("\\f", "\x0C")
+              .replace("\\\\", "\\")
+            } else {
+                arg.to_string()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join(" ");
+    if quote_open {
+        println!("{}",output);
+        // println!()
+        
+    }else {
+        println!("{}",output);
     }
-    let output = args[i..].join(" ");
-    let interpreted = output
-        .replace("\\n", "\n")
-        .replace("\\t", "\t")
-        .replace("\\r", "\r")
-        .replace("\\a", "\x07")
-        .replace("\\b", "\x08")
-        .replace("\\v", "\x0B")
-        .replace("\\f", "\x0C")
-        .replace("\\\\", "\\");
-    if no_newline {
-        print!("{}", interpreted);
-    } else {
-        println!("{}", interpreted);
-    }
+
 }

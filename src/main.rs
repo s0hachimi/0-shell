@@ -24,7 +24,7 @@ fn read_complete_input() -> (String, bool, bool) {
                 continue;
             }
         }
-        // Filter out escape sequences, control characters, and non-ASCII
+
         let filtered_line: String = line.chars().filter(|c| {
             // Only allow printable ASCII (space to ~), newline, and tab
             (*c >= ' ' && *c <= '~') || *c == '\n' || *c == '\t'
@@ -32,36 +32,23 @@ fn read_complete_input() -> (String, bool, bool) {
         input.push_str(&filtered_line);
 
         // Count number of quotes
-        // let quote_count = input.chars().filter(|&c| c == '"' || c == '\'').count();
-        let chars: Vec<char> = input.chars().collect();
-        let mut quote_count = 0;
+        let q1 = input.chars().filter(|&c| c == '\'').count();
+         let q2 = input.chars().filter(|&c| c == '"').count();
 
-        for (i, &c) in chars.iter().enumerate() {
-            if c == '"' {
-                // check_quote = true;
-                if i == 0 || chars[i - 1] != '\\' {
-                    quote_count += 1;
-                    continue;
-                }
-            } else if c == '\'' {
-                check_quote = true;
-                quote_count += 1;
-                continue;
-            } else {
-                inp.push(c)
-            }
-        }
-
-        if quote_count % 2 == 0 {
+        if (q1 % 2 == 0 && input.contains("'"))  || (q2 % 2 == 0 && input.contains('"')) {
+            
+            break;
+        } else if !input.contains("'") || !input.contains('"') {
             break;
         } else {
-            // Show different prompt while waiting for closing quote
+            check_quote = true;
             print!("quote> ");
             inp.clear()
         }
     }
     (input, check_quote, ctr_d)
 }
+
 
 fn split(input: String) -> Vec<String> {
     let mut st = String::new();
@@ -110,7 +97,7 @@ fn main() {
         print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
-        let (input, _quote_open, ctr_d) = read_complete_input();
+        let (input, quote_open, ctr_d) = read_complete_input();
 
         if ctr_d {
             break;
@@ -129,7 +116,6 @@ fn main() {
 
         let splited = split(input.to_string());
 
-        println!("{:?}", splited.clone());
         let args: Vec<&str> = splited.iter().map(|s| s.as_str()).collect();
 
         if args.is_empty()  {
@@ -137,7 +123,7 @@ fn main() {
         }
 
         match args[0] {
-            "echo" => commands::echo::echo(args[1..].to_vec()),
+            "echo" => commands::echo::echo(args[1..].to_vec(), quote_open),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {
