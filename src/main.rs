@@ -55,7 +55,42 @@ fn read_complete_input() -> (String, bool, bool) {
             inp.clear()
         }
     }
-    (inp, check_quote, ctr_d)
+    (input, check_quote, ctr_d)
+}
+
+fn split(input: String) -> Vec<String> {
+    let mut st = String::new();
+    let mut ve = Vec::new();
+
+    let mut in_single = false;
+    let mut in_double = false;
+
+    for c in input.chars() {
+        if c == '\'' && !in_double {
+            in_single = !in_single;
+            continue;
+        }
+
+        if c == '"' && !in_single {
+            in_double = !in_double;
+            continue;
+        }
+
+        if c == ' ' && !in_single && !in_double {
+            if !st.is_empty() {
+                ve.push(st.clone());
+                st.clear();
+            }
+        } else {
+            st.push(c);
+        }
+    }
+
+    if !st.is_empty() {
+        ve.push(st);
+    }
+
+    ve
 }
 
 fn main() {
@@ -70,7 +105,7 @@ fn main() {
         print!("{} $ ", current_path.cyan().bold());
         stdout().flush().unwrap();
 
-        let (input, quote_open, ctr_d) = read_complete_input();
+        let (input, _quote_open, ctr_d) = read_complete_input();
 
         if ctr_d {
             break;
@@ -87,14 +122,17 @@ fn main() {
             break;
         }
 
-        let args: Vec<&str> = input.split_whitespace().collect();
+        let splited = split(input.to_string());
+
+        println!("{:?}", splited.clone());
+        let args: Vec<&str> = splited.iter().map(|s| s.as_str()).collect();
 
         if args.is_empty() {
             continue;
         }
 
         match args[0] {
-            "echo" => commands::echo::echo(args[1..].to_vec(), quote_open),
+            "echo" => commands::echo::echo(args[1..].to_vec()),
             "cd" => commands::cd::cd(args[1..].to_vec()),
             "pwd" => {
                 if args.len() > 1 {

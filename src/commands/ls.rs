@@ -32,9 +32,15 @@ pub fn ls(mut args: Vec<&str>) {
 
     for flag in args {
         if flag.starts_with("-") {
-            l = flag.contains("l");
-            a = flag.contains("a");
-            f = flag.contains("F");
+            if !l {
+                l = flag.contains("l");
+            }
+            if !a {
+                a = flag.contains("a");
+            }
+            if !f {
+                f = flag.contains("F");
+            }
         }
     }
 
@@ -59,7 +65,38 @@ pub fn ls(mut args: Vec<&str>) {
 }
 
 fn ls_output(l: bool, a: bool, f: bool, path: String) {
+    let mut no_flag_or_a_f: Vec<(String, String)> = Vec::new();
+    let mut flag_l = Vec::new();
+    let mut total = 0;
+
     let dir_path = std::path::Path::new(&path);
+
+    let metadata = match fs::metadata(&path) {
+        Ok(meta) => meta,
+        Err(e) => {
+            println!("ls: cannot access '{}': {}", path, e);
+            return;
+        }
+    };
+
+    // ls files
+    if metadata.is_file()
+        || metadata.file_type().is_char_device()
+        || metadata.file_type().is_block_device()
+    {
+        if l {
+            let perm_str = perms(metadata.clone(), dir_path);
+
+            let st = flag_f(perm_str.clone());
+
+            add_to_flag_l(&path, metadata, &mut flag_l, st.to_string(), perm_str);
+            format_flag_l(flag_l);
+        } else {
+            println!("{}", path);
+        }
+
+        return;
+    }
 
     let dir = match fs::read_dir(path.clone()) {
         Ok(dir) => dir,
@@ -70,6 +107,7 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
                     path.clone(),
                     &n.to_string()[..n.to_string().len() - 13]
                 );
+            } else if n.to_string().contains("Not a directory") {
             } else {
                 println!(
                     "ls: cannot access '{}': {}",
@@ -80,10 +118,6 @@ fn ls_output(l: bool, a: bool, f: bool, path: String) {
             return;
         }
     };
-
-    let mut no_flag_or_a_f: Vec<(String, String)> = Vec::new();
-    let mut flag_l = Vec::new();
-    let mut total = 0;
 
     // Add . and ..
     if a {
