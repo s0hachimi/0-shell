@@ -336,33 +336,34 @@ fn format_flag_l(flag: Vec<Vec<String>>) {
 
 fn format_flag(files: Vec<(String, String)>) {
     let names: Vec<String> = files.into_iter().map(|(name, _)| name).collect();
-    
+
     if names.is_empty() {
         return;
     }
-    
+
     // Get terminal width, default to 80 if unable to determine
     let terminal_width = term_size::dimensions().map(|(w, _)| w).unwrap_or(80);
-    
+
     // Find the maximum length of file names (without ANSI codes for calculation)
-    let max_name_len = names.iter()
+    let max_name_len = names
+        .iter()
         .map(|name| strip_ansi_codes(name).len())
         .max()
         .unwrap_or(0);
-    
+
     // Add some padding between columns
     let column_width = max_name_len + 2;
-    
+
     // Calculate number of columns that fit in terminal width
     let num_columns = if column_width > 0 {
         (terminal_width / column_width).max(1)
     } else {
         1
     };
-    
+
     // Calculate number of rows needed
     let num_rows = (names.len() + num_columns - 1) / num_columns;
-    
+
     // Print the table
     for row in 0..num_rows {
         for col in 0..num_columns {
@@ -371,7 +372,7 @@ fn format_flag(files: Vec<(String, String)>) {
                 let name = &names[index];
                 let stripped_len = strip_ansi_codes(name).len();
                 print!("{}", name);
-                
+
                 // Add padding for alignment, except for the last column
                 if col < num_columns - 1 && index + num_rows < names.len() {
                     let padding = column_width - stripped_len;
@@ -386,12 +387,10 @@ fn format_flag(files: Vec<(String, String)>) {
 // Helper function to strip ANSI color codes for length calculation
 fn strip_ansi_codes(text: &str) -> String {
     let mut result = String::new();
-    let mut in_escape = false;
     let mut chars = text.chars();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '\x1B' {
-            in_escape = true;
             // Skip the escape sequence
             if chars.next() == Some('[') {
                 // Skip until we find the ending character (letter)
@@ -400,9 +399,8 @@ fn strip_ansi_codes(text: &str) -> String {
                         break;
                     }
                 }
-            }
-            in_escape = false;
-        } else if !in_escape {
+            };
+        } else {
             result.push(ch);
         }
     }
@@ -426,7 +424,12 @@ fn flag_f(perms: String) -> &'static str {
 }
 
 fn sort_l(files: &mut Vec<Vec<String>>, a: bool) {
+    let mut one = Vec::new();
+    let mut two = Vec::new();
+
     if a {
+        one = files[0].clone();
+        two = files[1].clone();
         *files = files[2..].to_vec();
     }
 
@@ -445,6 +448,11 @@ fn sort_l(files: &mut Vec<Vec<String>>, a: bool) {
         one.cmp(&two)
     });
 
+    if a {
+        files.insert(0, one);
+        files.insert(1, two);
+    }
+
     for f in files.iter_mut() {
         let prefix = f[0].clone();
         let last_index = f.len() - 1;
@@ -462,7 +470,13 @@ fn sort_l(files: &mut Vec<Vec<String>>, a: bool) {
 }
 
 fn sort(files: &mut Vec<(String, String)>, a: bool) {
+    let mut one = (String::new(), String::new());
+    let mut two = (String::new(), String::new());
+
     if a {
+        one = files[0].clone();
+        two = files[1].clone();
+
         *files = files[2..].to_vec();
     }
 
@@ -477,6 +491,11 @@ fn sort(files: &mut Vec<(String, String)>, a: bool) {
                 .collect::<String>();
         one.to_lowercase().cmp(&two.to_lowercase())
     });
+
+    if a {
+        files.insert(0, one);
+        files.insert(1, two);
+    }
 
     for f in files.iter_mut() {
         let prefix = f.1.clone();
